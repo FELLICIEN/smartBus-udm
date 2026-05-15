@@ -1,216 +1,515 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:smartbusudm/pages/station/station_detaille_page.dart';
 
-
-class Station extends StatefulWidget {
-   const Station({super.key});
+class StationPage extends StatefulWidget {
+  const StationPage({super.key});
 
   @override
-  State<Station> createState() => _StationState();
+  State<StationPage> createState() => _StationPageState();
 }
 
-class _StationState extends State<Station> {
-  final List<Map<String, String>> stations = [
+class _StationPageState extends State<StationPage> {
+  String search = "";
 
-    {"name": "Station Rond point de Koutou", "subtitle": "Près du rond point MIDI ", "color": "aqua"},
-    {"name": "Station Marché mokolo(Guelkole)", "subtitle": "Résidence medard", "color": "purple"},
-    {"name": "Station Rond point Mota", "subtitle": "Près du commissariat central 2 ", "color": "yellow"},
-
-
-    {"name": "Station de Belaba", "subtitle": "près du lycée moderne", "color": "blue"},
-    {"name": "Station Rond point Mota", "subtitle": "Près du commissariat central 2 ", "color": "purple"},
-    {"name": "Station Rond point Mota", "subtitle": "Près du commissariat central 2 ", "color": "green"},
-    {"name": "Station Rond point Mota", "subtitle": "Près du commissariat central 2 ", "color": "green"},
-
-    {"name": "Station Rond point de Koutou", "subtitle": "Près du rond point MIDI ", "color": "aqua"},
-    {"name": "Station Marché mokolo(Guelkole)", "subtitle": "Résidence medard", "color": "purple"},
-    {"name": "Station Rond point Mota", "subtitle": "Près du commissariat central 2 ", "color": "yellow"},
-
-
-
-  ];
-  
-
-
-Future<void> dialogue() async {
-  return showDialog<void>(
-    context: context,
-    barrierDismissible: false, // user must tap button!
-    builder: (BuildContext context) {
-      return AlertDialog(
-        shape: BeveledRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(40))),
-        backgroundColor: const Color.fromARGB(255, 204, 203, 209),
-        title: Text("Stations",
-        style: const TextStyle(fontFamily: "BoostPlay"),
-        ),
-        content: const SingleChildScrollView(
-          child: ListBody(
-          
-            children: <Widget>[
-              
-              Icon(Icons.directions_bus_sharp,size: 100,),
-              Text('bus de la stattion x.',style:TextStyle(color: Color.fromARGB(255, 43, 34, 34)),),
-              Text('exemple contenu',style:TextStyle(color: Color.fromARGB(255, 41, 35, 35)),
-              )
-            ],
-          ),
-        ),
-        actions: <Widget>[
-          TextButton(
-            child: const Text('Fermer',style:TextStyle(color: Color.fromARGB(255, 34, 22, 22))),
-            onPressed: () {
-              Navigator.of(context).pop();
-            },
-          ),
-        ],
-      );
-    },
-  );
-}
-
+  Stream<QuerySnapshot> getStations() {
+    return FirebaseFirestore.instance
+        .collection('stations')
+        .snapshots();
+  }
 
   @override
   Widget build(BuildContext context) {
-  
-    return SingleChildScrollView(
-      
+    return Scaffold(
+      backgroundColor: Colors.grey[100],
+
+      body: SafeArea(
         child: Column(
-          
-          
           children: [
-          
-         
-            // Header
+
+            /// 🔥 HEADER
             Container(
-              
+              height: 250,
               width: double.infinity,
-              padding: EdgeInsets.fromLTRB(20, 60, 20, 30),
-              decoration: BoxDecoration(
-                
-                borderRadius: BorderRadius.only(
-                  bottomLeft: Radius.circular(30),
-                  bottomRight: Radius.circular(30),
-                ),
+
+              decoration: const BoxDecoration(
                 image: DecorationImage(
-                opacity: 50,
-                  image: AssetImage('assets/bus.png',), //
+                  image: AssetImage('assets/bus2.png'),
                   fit: BoxFit.cover,
-                
-                  // ignore: deprecated_member_use
                 ),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [                         
-               
-                  Row(
-                    children: [
-                      CircleAvatar(
-                      backgroundImage: AssetImage("assets/udm.png"),
-                      radius: 25,
-                      ),
-                      Padding(padding: EdgeInsets.only( top: 15)),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('SmartBus UDM', style: TextStyle(color: Colors.white, fontSize: 30, fontWeight: FontWeight.bold,fontFamily: "BoostPlay")),
-                          Text('Université de Moundou', style: TextStyle(color: Colors.white, fontSize: 16,fontWeight: FontWeight.bold)),
-                        ],
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: 20),
-                  Text('Bienvenue sur', style: TextStyle(color: Colors.white70, fontSize: 16)),
-                          Text('SmartBus UDM', style: TextStyle(color: Colors.white, fontSize: 30, fontWeight: FontWeight.bold,fontFamily: "BoostPlay")),
-                 
-                  SizedBox(height: 10),
-                  Text('Consultez les stations et les horaires des bus en temps réel.', style: TextStyle(color: Colors.white70, fontSize: 16)),
-                  SizedBox(height: 20),
-                  TextField(
-                    decoration: InputDecoration(
-                      hintText: 'Rechercher une station...',
-                      fillColor: Colors.white,
-                      filled: true,
-                      prefixIcon: Icon(Icons.search),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
+
+              child: Container(
+                padding: const EdgeInsets.all(20),
+
+                decoration: BoxDecoration(
+                  // ignore: deprecated_member_use
+                  color: Colors.black.withOpacity(0.45),
+                ),
+
+                child: const Column(
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start,
+
+                  children: [
+Row(
+  mainAxisAlignment: MainAxisAlignment.end,
+  children: [
+    CircleAvatar(
+                          radius: 40,
+                          backgroundImage: AssetImage(  
+                            'assets/cnou_icon.png',
+                          ),
+                          
+    
+    ),
+  ],
+),
+                    Spacer(),
+
+                    /// 🚌 TITRE
+                    Text(
+                      "Stations",
+
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 32,
+                        fontWeight:
+                            FontWeight.bold,
                       ),
                     ),
-                  ),
-                ],
+
+                    SizedBox(height: 8),
+
+                    /// 📄 DESCRIPTION
+                    Text(
+                      "Clique sur une station pour voir les bus",
+
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 18,
+                        fontWeight:
+                            FontWeight.w500,
+                        fontStyle:
+                            FontStyle.italic,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
 
-            // Stations list
+            /// 🔍 RECHERCHE
             Padding(
-              padding: const EdgeInsets.all(20.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Stations disponibles', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                  SizedBox(height: 10),
-                  Column(
-                    children: stations.map((station) {
-                      Color color;
-                      switch (station['color']) {
-                        case 'green':
-                          color = Colors.green;
-                          break;
-                        case 'purple':
-                          color = Colors.purple;
-                          break;
-                        default:
-                          color = Colors.blue;
-                      }
-                      return Card(
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        child: ListTile(
-                          leading: Icon(Icons.directions_bus, color: color),
-                          title: Text(station['name']!),
-                          subtitle: Text(station['subtitle']!),
-                          onTap: () {
-                            dialogue();
-                          }                                                 ,
-                          trailing: Icon(Icons.arrow_forward_ios),
-                        ),
-                      );
-                    }).toList(),
+              padding: const EdgeInsets.all(15),
+
+              child: TextField(
+                onChanged: (v) {
+                  setState(() {
+                    search = v.toLowerCase();
+                  });
+                },
+
+                decoration: InputDecoration(
+                  hintText:
+                      "Rechercher une station...",
+
+                  prefixIcon:
+                      const Icon(Icons.search),
+
+                  filled: true,
+                  fillColor: Colors.white,
+
+                  contentPadding:
+                      const EdgeInsets.symmetric(
+                    vertical: 0,
                   ),
-                  SizedBox(height: 20),
 
+                  border: OutlineInputBorder(
+                    borderRadius:
+                        BorderRadius.circular(15),
 
+                    borderSide:
+                        BorderSide.none,
+                  ),
+                ),
+              ),
+            ),
 
+            /// 🔥 STREAM STATIONS
+            Expanded(
+              child:
+                  StreamBuilder<QuerySnapshot>(
+                stream: getStations(),
 
+                builder: (context, snapshot) {
 
-    
-                  // Next bus info
-                  /*
-                  Card(
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    color: Colors.blue.shade50,
-                    child: ListTile(
-                      leading: Icon(Icons.access_time, color: Colors.blue),
-                      title: Text('Prochain bus le plus proche'),
-                      subtitle: Text('Station A • 06:00 • Bus 102'),
-                      trailing: Container(
-                        padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.green,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text('Disponible', style: TextStyle(color: Colors.white)),
+                  /// ⏳ LOADING
+                  if (snapshot.connectionState ==
+                      ConnectionState.waiting) {
+                    return const Center(
+                      child:
+                          CircularProgressIndicator(),
+                    );
+                  }
+
+                  /// ❌ ERREUR
+                  if (snapshot.hasError) {
+                    return const Center(
+                      child: Text(
+                        "Erreur de chargement",
                       ),
-                    ),
-                  ),
-                  */
-                ],
-                
+                    );
+                  }
+
+                  /// 🚫 PAS DE DATA
+                  if (!snapshot.hasData) {
+                    return const Center(
+                      child: Text(
+                        "Aucune station",
+                      ),
+                    );
+                  }
+
+                  final stations =
+                      snapshot.data!.docs;
+
+                  /// 🔥 FILTRE RECHERCHE
+                  final filtered = stations
+                      .where((doc) {
+                    final name =
+                        (doc['nom'] ?? "")
+                            .toString()
+                            .toLowerCase();
+
+                    return name.contains(
+                        search);
+                  }).toList();
+
+                  /// 🚫 AUCUN RESULTAT
+                  if (filtered.isEmpty) {
+                    return const Center(
+                      child: Text(
+                        "Aucune station trouvée",
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight:
+                              FontWeight.w500,
+                        ),
+                      ),
+                    );
+                  }
+
+                  return Column(
+                    children: [
+
+                      /// 🔥 TOTAL STATIONS
+                      Container(
+                        margin:
+                            const EdgeInsets.symmetric(
+                          horizontal: 15,
+                        ),
+
+                        padding:
+                            const EdgeInsets.all(18),
+
+                        decoration:
+                            BoxDecoration(
+                          color: Colors.white,
+
+                          borderRadius:
+                              BorderRadius.circular(
+                                  18),
+
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black
+                                  // ignore: deprecated_member_use
+                                  .withOpacity(0.08),
+
+                              blurRadius: 10,
+
+                              offset:
+                                  const Offset(
+                                0,
+                                5,
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        child: Row(
+                          children: [
+
+                            /// 🔵 ICON
+                            Container(
+                              padding:
+                                  const EdgeInsets
+                                      .all(14),
+
+                              decoration:
+                                  BoxDecoration(
+                                color: Colors
+                                    .blue.shade50,
+
+                                borderRadius:
+                                    BorderRadius
+                                        .circular(
+                                            15),
+                              ),
+
+                              child: const Icon(
+                                Icons.location_city,
+
+                                color:
+                                    Colors.blue,
+
+                                size: 30,
+                              ),
+                            ),
+
+                            const SizedBox(
+                                width: 15),
+
+                            /// 📄 TEXT
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment:
+                                    CrossAxisAlignment
+                                        .start,
+
+                                children: [
+
+                                  const Text(
+                                    "Nombre total des stations",
+
+                                    style:
+                                        TextStyle(
+                                      fontSize:
+                                          16,
+
+                                      color:
+                                          Colors.grey,
+                                    ),
+                                  ),
+
+                                  const SizedBox(
+                                      height:
+                                          5),
+
+                                  Text(
+                                    "${filtered.length} station(s)",
+
+                                    style:
+                                        const TextStyle(
+                                      fontSize:
+                                          26,
+
+                                      fontWeight:
+                                          FontWeight
+                                              .bold,
+
+                                      color:
+                                          Colors.blue,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 15),
+
+                      /// 🔥 LISTE
+                      Expanded(
+                        child: ListView.builder(
+                          padding:
+                              const EdgeInsets.all(
+                                  12),
+
+                          itemCount:
+                              filtered.length,
+
+                          itemBuilder:
+                              (context, index) {
+
+                            final station =
+                                filtered[index];
+
+                            return InkWell(
+                              borderRadius:
+                                  BorderRadius
+                                      .circular(
+                                          15),
+
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+
+                                  MaterialPageRoute(
+                                    builder: (_) =>
+                                        StationBusPage(
+                                      stationId:
+                                          station.id,
+
+                                      stationName:
+                                          station[
+                                              'nom'],
+                                    ),
+                                  ),
+                                );
+                              },
+
+                              child: Card(
+                                elevation: 3,
+
+                                shape:
+                                    RoundedRectangleBorder(
+                                  borderRadius:
+                                      BorderRadius
+                                          .circular(
+                                              15),
+                                ),
+
+                                margin:
+                                    const EdgeInsets
+                                        .only(
+                                  bottom: 12,
+                                ),
+
+                                child: ListTile(
+                                  contentPadding:
+                                      const EdgeInsets
+                                          .all(12),
+
+                                  /// 🔵 ICON
+                                  leading:
+                                      Container(
+                                    padding:
+                                        const EdgeInsets
+                                            .all(
+                                                10),
+
+                                    decoration:
+                                        BoxDecoration(
+                                      color: Colors
+                                          .blue
+                                          .shade50,
+
+                                      borderRadius:
+                                          BorderRadius
+                                              .circular(
+                                                  12),
+                                    ),
+
+                                    child:
+                                        const Icon(
+                                      Icons
+                                          .location_on,
+
+                                      color: Colors
+                                          .blue,
+                                    ),
+                                  ),
+
+                                  /// 🏷️ NOM
+                                  title: Text(
+                                    "Station ${station['nom']}",
+
+                                    style:
+                                        const TextStyle(
+                                      fontWeight:
+                                          FontWeight
+                                              .bold,
+
+                                      fontSize:
+                                          17,
+                                    ),
+                                  ),
+
+                                  /// 📄 DESCRIPTION
+                                  subtitle: Padding(
+                                    padding:
+                                        const EdgeInsets
+                                            .only(
+                                      top: 8,
+                                    ),
+
+                                    child: Text(
+                                      station['description'] ??
+                                          "Pas de description",
+                                    ),
+                                  ),
+
+                                  /// ➡️ ADRESSE
+                                  trailing:
+                                      Column(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment
+                                            .center,
+
+                                    children: [
+
+                                      const Icon(
+                                        Icons
+                                            .arrow_forward_ios,
+
+                                        size: 16,
+                                      ),
+
+                                      const SizedBox(
+                                          height:
+                                              8),
+
+                                      SizedBox(
+                                        width: 90,
+
+                                        child:
+                                            Text(
+                                          station['adresse'] ??
+                                              "Sans adresse",
+
+                                          textAlign:
+                                              TextAlign
+                                                  .center,
+
+                                          overflow:
+                                              TextOverflow
+                                                  .ellipsis,
+
+                                          style:
+                                              TextStyle(
+                                            fontSize:
+                                                12,
+
+                                            color: Theme.of(
+                                                    context)
+                                                .primaryColor,
+
+                                            fontWeight:
+                                                FontWeight
+                                                    .w500,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  );
+                },
               ),
             ),
           ],
-          
         ),
+      ),
     );
- }
-
- }
+  }
+}

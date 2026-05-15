@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "523675964953",
+    "project_id": "felicien-a543c674",
+    "storage_bucket": "felicien-a543c674.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:523675964953:android:a77ef966ace654f692fc88",
+        "android_client_info": {
+          "package_name": "com.example.smartbusudm"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBMYaeyzwWAzx7mUXoCQlwnFQuR46m9bfg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
