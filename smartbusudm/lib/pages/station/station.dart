@@ -21,296 +21,324 @@ class _StationPageState extends State<StationPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[100],
+      backgroundColor: const Color(0xFFF4F6FA),
 
-      body: SafeArea(
-        child: Column(
-          children: [
+      body: Column(
+        children: [
 
-            /// 🔥 HEADER
-            Container(
-              height: 250,
-              width: double.infinity,
-
-              decoration: const BoxDecoration(
-                image: DecorationImage(
-                  image: AssetImage('assets/bus2.png'),
-                  fit: BoxFit.cover,
-                ),
+          /// 🔥 HEADER
+          Container(
+            height: 260,
+            width: double.infinity,
+            decoration: const BoxDecoration(
+              borderRadius: BorderRadius.only(
+                bottomLeft: Radius.circular(30),
+                bottomRight: Radius.circular(30),
               ),
+            ),
+            child: ClipRRect(
+              borderRadius: const BorderRadius.only(
+                bottomLeft: Radius.circular(30),
+                bottomRight: Radius.circular(30),
+              ),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
 
-              child: Container(
-                padding: const EdgeInsets.all(20),
+                  /// 🖼️ IMAGE
+                  Image.asset(
+                    'assets/bus2.png',
+                    fit: BoxFit.cover,
+                  ),
 
-                decoration: BoxDecoration(
-                  // ignore: deprecated_member_use
-                  color: Colors.black.withOpacity(0.45),
-                ),
+                  /// 🔲 OVERLAY
+                  Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          // ignore: deprecated_member_use
+                          Colors.blue.shade900.withOpacity(0.55),
+                          // ignore: deprecated_member_use
+                          Colors.blue.shade700.withOpacity(0.75),
+                        ],
+                      ),
+                    ),
+                  ),
 
-                child: const Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
+                  /// 📄 CONTENU HEADER
+                  SafeArea(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 10,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
 
-                  children: [
-Row(
-  mainAxisAlignment: MainAxisAlignment.end,
-  children: [
-    CircleAvatar(
-                          radius: 40,
-                          backgroundImage: AssetImage(  
-                            'assets/cnou_icon.png',
+                          /// 🔝 TOP ROW
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+
+                             
+
+                             
+
+                              /// 🔵 LOGO CNOU
+                              CircleAvatar(
+                                radius: 24,
+                                backgroundColor: Colors.white,
+                                child: ClipOval(
+                                  child: Image.asset(
+                                    'assets/cnou_icon.png',
+                                    fit: BoxFit.cover,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                          
-    
-    ),
-  ],
-),
-                    Spacer(),
 
-                    /// 🚌 TITRE
-                    Text(
-                      "Stations",
+                          const Spacer(),
 
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 32,
-                        fontWeight:
-                            FontWeight.bold,
+                          /// 🚌 TITRE + COMPTEUR
+                          StreamBuilder<QuerySnapshot>(
+                            stream: getStations(),
+                            builder: (context, snap) {
+                              final count = snap.hasData
+                                  ? snap.data!.docs.length
+                                  : 0;
+                              return Row(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Text(
+                                    "Stations Bus",
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 32,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 4),
+                                    child: Text(
+                                      "$count",
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 28,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              );
+                            },
+                          ),
+
+                          const SizedBox(height: 10),
+
+                          /// 📄 SOUS-TITRE
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              // ignore: deprecated_member_use
+                              color: Colors.white.withOpacity(0.18),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  "Suivez les bus en temps réel ",
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                Text("🚌", style: TextStyle(fontSize: 16)),
+                              ],
+                            ),
+                          ),
+
+                          const SizedBox(height: 15),
+                        ],
                       ),
                     ),
+                  ),
+                ],
+              ),
+            ),
+          ),
 
-                    SizedBox(height: 8),
-
-                    /// 📄 DESCRIPTION
-                    Text(
-                      "Clique sur une station pour voir les bus",
-
-                      style: TextStyle(
-                        color: Colors.white70,
-                        fontSize: 18,
-                        fontWeight:
-                            FontWeight.w500,
-                        fontStyle:
-                            FontStyle.italic,
-                      ),
-                    ),
-                  ],
+          /// 🔍 RECHERCHE
+          Padding(
+            padding: const EdgeInsets.fromLTRB(15, 18, 15, 5),
+            child: TextField(
+              onChanged: (v) => setState(() => search = v.toLowerCase()),
+              decoration: InputDecoration(
+                hintText: "Rechercher une station...",
+                hintStyle: const TextStyle(color: Colors.grey),
+                prefixIcon: const Icon(Icons.search, color: Colors.grey),
+                filled: true,
+                fillColor: Colors.white,
+                contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(15),
+                  borderSide: BorderSide.none,
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(15),
+                  borderSide: BorderSide.none,
                 ),
               ),
             ),
+          ),
 
-            /// 🔍 RECHERCHE
-            Padding(
-              padding: const EdgeInsets.all(15),
+          /// 🔥 LISTE STATIONS
+          Expanded(
+            child: StreamBuilder<QuerySnapshot>(
+              stream: getStations(),
+              builder: (context, snapshot) {
 
-              child: TextField(
-                onChanged: (v) {
-                  setState(() {
-                    search = v.toLowerCase();
-                  });
-                },
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
 
-                decoration: InputDecoration(
-                  hintText:
-                      "Rechercher une station...",
+                if (snapshot.hasError) {
+                  return const Center(child: Text("Erreur de chargement"));
+                }
 
-                  prefixIcon:
-                      const Icon(Icons.search),
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return const Center(child: Text("Aucune station"));
+                }
 
-                  filled: true,
-                  fillColor: Colors.white,
+                final filtered = snapshot.data!.docs.where((doc) {
+                  final name = (doc['nom'] ?? "").toString().toLowerCase();
+                  return name.contains(search);
+                }).toList();
 
-                  contentPadding:
-                      const EdgeInsets.symmetric(
-                    vertical: 0,
-                  ),
+                if (filtered.isEmpty) {
+                  return const Center(
+                    child: Text(
+                      "Aucune station trouvée",
+                      style: TextStyle(fontSize: 16),
+                    ),
+                  );
+                }
 
-                  border: OutlineInputBorder(
-                    borderRadius:
-                        BorderRadius.circular(15),
+                return ListView.builder(
+                  padding: const EdgeInsets.fromLTRB(15, 10, 15, 15),
+                  itemCount: filtered.length,
+                  itemBuilder: (context, index) {
+                    final station = filtered[index];
+                    final adresse = station['adresse'] ?? "Sans adresse";
 
-                    borderSide:
-                        BorderSide.none,
-                  ),
-                ),
-              ),
-            ),
-
-            /// 🔥 STREAM STATIONS
-            Expanded(
-              child:
-                  StreamBuilder<QuerySnapshot>(
-                stream: getStations(),
-
-                builder: (context, snapshot) {
-
-                  /// ⏳ LOADING
-                  if (snapshot.connectionState ==
-                      ConnectionState.waiting) {
-                    return const Center(
-                      child:
-                          CircularProgressIndicator(),
-                    );
-                  }
-
-                  /// ❌ ERREUR
-                  if (snapshot.hasError) {
-                    return const Center(
-                      child: Text(
-                        "Erreur de chargement",
-                      ),
-                    );
-                  }
-
-                  /// 🚫 PAS DE DATA
-                  if (!snapshot.hasData) {
-                    return const Center(
-                      child: Text(
-                        "Aucune station",
-                      ),
-                    );
-                  }
-
-                  final stations =
-                      snapshot.data!.docs;
-
-                  /// 🔥 FILTRE RECHERCHE
-                  final filtered = stations
-                      .where((doc) {
-                    final name =
-                        (doc['nom'] ?? "")
-                            .toString()
-                            .toLowerCase();
-
-                    return name.contains(
-                        search);
-                  }).toList();
-
-                  /// 🚫 AUCUN RESULTAT
-                  if (filtered.isEmpty) {
-                    return const Center(
-                      child: Text(
-                        "Aucune station trouvée",
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight:
-                              FontWeight.w500,
-                        ),
-                      ),
-                    );
-                  }
-
-                  return Column(
-                    children: [
-
-                      /// 🔥 TOTAL STATIONS
-                      Container(
-                        margin:
-                            const EdgeInsets.symmetric(
-                          horizontal: 15,
-                        ),
-
-                        padding:
-                            const EdgeInsets.all(18),
-
-                        decoration:
-                            BoxDecoration(
+                    return GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => StationBusPage(
+                              stationId: station.id,
+                              stationName: station['nom'],
+                            ),
+                          ),
+                        );
+                      },
+                      child: Container(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        decoration: BoxDecoration(
                           color: Colors.white,
-
-                          borderRadius:
-                              BorderRadius.circular(
-                                  18),
-
+                          borderRadius: BorderRadius.circular(16),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black
-                                  // ignore: deprecated_member_use
-                                  .withOpacity(0.08),
-
-                              blurRadius: 10,
-
-                              offset:
-                                  const Offset(
-                                0,
-                                5,
-                              ),
+                              // ignore: deprecated_member_use
+                              color: Colors.black.withOpacity(0.06),
+                              blurRadius: 8,
+                              offset: const Offset(0, 3),
                             ),
                           ],
                         ),
-
                         child: Row(
                           children: [
 
                             /// 🔵 ICON
                             Container(
-                              padding:
-                                  const EdgeInsets
-                                      .all(14),
-
-                              decoration:
-                                  BoxDecoration(
-                                color: Colors
-                                    .blue.shade50,
-
-                                borderRadius:
-                                    BorderRadius
-                                        .circular(
-                                            15),
+                              margin: const EdgeInsets.all(12),
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: Colors.blue.shade600,
+                                borderRadius: BorderRadius.circular(14),
                               ),
-
                               child: const Icon(
-                                Icons.location_city,
-
-                                color:
-                                    Colors.blue,
-
-                                size: 30,
+                                Icons.location_on,
+                                color: Colors.white,
+                                size: 28,
                               ),
                             ),
 
-                            const SizedBox(
-                                width: 15),
-
-                            /// 📄 TEXT
+                            /// 📄 TEXTE
                             Expanded(
                               child: Column(
-                                crossAxisAlignment:
-                                    CrossAxisAlignment
-                                        .start,
-
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-
-                                  const Text(
-                                    "Nombre total des stations",
-
-                                    style:
-                                        TextStyle(
-                                      fontSize:
-                                          16,
-
-                                      color:
-                                          Colors.grey,
+                                  Text(
+                                    "Station ${station['nom']}",
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
                                     ),
                                   ),
-
-                                  const SizedBox(
-                                      height:
-                                          5),
-
+                                  const SizedBox(height: 4),
                                   Text(
-                                    "${filtered.length} station(s)",
+                                    station['description'] ?? "Pas de description",
+                                    style: const TextStyle(
+                                      color: Colors.grey,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
 
-                                    style:
-                                        const TextStyle(
-                                      fontSize:
-                                          26,
-
-                                      fontWeight:
-                                          FontWeight
-                                              .bold,
-
-                                      color:
-                                          Colors.blue,
+                            /// ➡️ ADRESSE + FLECHE
+                            Container(
+                              margin: const EdgeInsets.all(12),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.grey.shade100,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Column(
+                                children: [
+                                  const Icon(
+                                    Icons.arrow_forward_ios,
+                                    size: 14,
+                                    color: Colors.blue,
+                                  ),
+                                  const SizedBox(height: 4),
+                                  SizedBox(
+                                    width: 75,
+                                    child: Text(
+                                      adresse,
+                                      textAlign: TextAlign.center,
+                                      overflow: TextOverflow.ellipsis,
+                                      maxLines: 2,
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        color: Colors.blue,
+                                        fontWeight: FontWeight.w600,
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -319,196 +347,13 @@ Row(
                           ],
                         ),
                       ),
-
-                      const SizedBox(height: 15),
-
-                      /// 🔥 LISTE
-                      Expanded(
-                        child: ListView.builder(
-                          padding:
-                              const EdgeInsets.all(
-                                  12),
-
-                          itemCount:
-                              filtered.length,
-
-                          itemBuilder:
-                              (context, index) {
-
-                            final station =
-                                filtered[index];
-
-                            return InkWell(
-                              borderRadius:
-                                  BorderRadius
-                                      .circular(
-                                          15),
-
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-
-                                  MaterialPageRoute(
-                                    builder: (_) =>
-                                        StationBusPage(
-                                      stationId:
-                                          station.id,
-
-                                      stationName:
-                                          station[
-                                              'nom'],
-                                    ),
-                                  ),
-                                );
-                              },
-
-                              child: Card(
-                                elevation: 3,
-
-                                shape:
-                                    RoundedRectangleBorder(
-                                  borderRadius:
-                                      BorderRadius
-                                          .circular(
-                                              15),
-                                ),
-
-                                margin:
-                                    const EdgeInsets
-                                        .only(
-                                  bottom: 12,
-                                ),
-
-                                child: ListTile(
-                                  contentPadding:
-                                      const EdgeInsets
-                                          .all(12),
-
-                                  /// 🔵 ICON
-                                  leading:
-                                      Container(
-                                    padding:
-                                        const EdgeInsets
-                                            .all(
-                                                10),
-
-                                    decoration:
-                                        BoxDecoration(
-                                      color: Colors
-                                          .blue
-                                          .shade50,
-
-                                      borderRadius:
-                                          BorderRadius
-                                              .circular(
-                                                  12),
-                                    ),
-
-                                    child:
-                                        const Icon(
-                                      Icons
-                                          .location_on,
-
-                                      color: Colors
-                                          .blue,
-                                    ),
-                                  ),
-
-                                  /// 🏷️ NOM
-                                  title: Text(
-                                    "Station ${station['nom']}",
-
-                                    style:
-                                        const TextStyle(
-                                      fontWeight:
-                                          FontWeight
-                                              .bold,
-
-                                      fontSize:
-                                          17,
-                                    ),
-                                  ),
-
-                                  /// 📄 DESCRIPTION
-                                  subtitle: Padding(
-                                    padding:
-                                        const EdgeInsets
-                                            .only(
-                                      top: 8,
-                                    ),
-
-                                    child: Text(
-                                      station['description'] ??
-                                          "Pas de description",
-                                    ),
-                                  ),
-
-                                  /// ➡️ ADRESSE
-                                  trailing:
-                                      Column(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment
-                                            .center,
-
-                                    children: [
-
-                                      const Icon(
-                                        Icons
-                                            .arrow_forward_ios,
-
-                                        size: 16,
-                                      ),
-
-                                      const SizedBox(
-                                          height:
-                                              8),
-
-                                      SizedBox(
-                                        width: 90,
-
-                                        child:
-                                            Text(
-                                          station['adresse'] ??
-                                              "Sans adresse",
-
-                                          textAlign:
-                                              TextAlign
-                                                  .center,
-
-                                          overflow:
-                                              TextOverflow
-                                                  .ellipsis,
-
-                                          style:
-                                              TextStyle(
-                                            fontSize:
-                                                12,
-
-                                            color: Theme.of(
-                                                    context)
-                                                .primaryColor,
-
-                                            fontWeight:
-                                                FontWeight
-                                                    .w500,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                    ],
-                  );
-                },
-              ),
+                    );
+                  },
+                );
+              },
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

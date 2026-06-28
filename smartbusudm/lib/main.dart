@@ -1,10 +1,8 @@
-
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:smartbusudm/firebase_options.dart';
 import 'package:smartbusudm/pages/pageDrower/welcompage.dart';
-
-
+import 'package:smartbusudm/services/bacground_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -13,6 +11,9 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
+  // Initialisation du service GPS
+  await BackgroundLocationService.initializeService();
+
   runApp(const MyApp());
 }
 
@@ -20,17 +21,13 @@ class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
   @override
-  
   Widget build(BuildContext context) {
     return MaterialApp(
-     
-      theme: ThemeData(
-        primaryColor:Colors.blue,
-      ),
-
       debugShowCheckedModeBanner: false,
-      home: const WelcomePage(), // OK ici
+      theme: ThemeData(
+        primaryColor: Colors.blue,
+      ),
+      home: const WelcomePage(),
     );
-    
   }
-}    
+}

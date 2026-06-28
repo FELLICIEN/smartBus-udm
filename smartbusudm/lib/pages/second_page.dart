@@ -86,7 +86,7 @@ class _SecondePageState extends State<SecondePage> {
       const AllBusPage(),
       const ProfilePage(),
       if (isAdmin) const AdminPage(),
-      if (isChauffeur||isAdmin) const ChauffeurPassagesPage(), 
+      if (isChauffeur) const ChauffeurPage(), 
       const ChatPage(),
     ];
 
@@ -95,7 +95,7 @@ class _SecondePageState extends State<SecondePage> {
       "Bus",
       "Profile",
       if (isAdmin) "Administration",
-      if (isChauffeur||isAdmin) "Chauffeur",
+      if (isChauffeur) "Chauffeur",
       "Discussions",
     ];
   }
@@ -124,10 +124,12 @@ class _SecondePageState extends State<SecondePage> {
         title: Text(
           "SmartBus ${titles[_currentIndex]}",
           style: TextStyle(
-            fontSize: 30,
-            fontWeight: FontWeight.bold,
-         color: Colors.white,
-            fontFamily: "BoostPlay",
+        
+                                  color: Colors.white,
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.bold,
+                                  fontStyle: FontStyle.italic,
+                                  fontFamily: 'serif',
           ),
         ),
       ),
@@ -163,11 +165,11 @@ class _SecondePageState extends State<SecondePage> {
 
           if (isAdmin)
             const BottomNavigationBarItem(
-              label: "Admin",
+              label: "Administration",
               icon: Icon(Icons.admin_panel_settings),
             ),
 
-          if (isChauffeur||isAdmin)
+          if (isChauffeur)
             const BottomNavigationBarItem(
               label: "Espace Chauffeur",
               icon: Icon(Icons.drive_eta),
