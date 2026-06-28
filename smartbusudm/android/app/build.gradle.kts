@@ -1,13 +1,6 @@
-plugins {
-    id("com.android.application")
-    id("org.jetbrains.kotlin.android")
-    id("dev.flutter.flutter-gradle-plugin")
-    id("com.google.gms.google-services")
-}
-
 android {
     namespace = "com.example.smartbusudm"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 34
 
     ndkVersion = "28.2.13676358"
 
@@ -23,21 +16,8 @@ android {
     defaultConfig {
         applicationId = "com.example.smartbusudm"
         minSdk = flutter.minSdkVersion
-        targetSdk = flutter.targetSdkVersion
+        targetSdk = 34
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
-
-    buildTypes {
-        release {
-            signingConfig = signingConfigs.getByName("debug")
-        }
-    }
 }
-
-flutter {
-    source = "../.."
-}
-
-
-

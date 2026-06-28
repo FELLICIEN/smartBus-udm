@@ -3,6 +3,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:smartbusudm/firebase_options.dart';
 import 'package:smartbusudm/pages/pageDrower/welcompage.dart';
+import 'package:smartbusudm/services/bacground_location.dart';
 
 
 
@@ -12,8 +13,8 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-
-  runApp(const MyApp());
+   await BackgroundLocationService.initializeService();
+  runApp(const MyApp());  
 }
 
 class MyApp extends StatelessWidget {

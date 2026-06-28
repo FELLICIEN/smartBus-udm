@@ -9,103 +9,76 @@ class AddPassagePage extends StatefulWidget {
   const AddPassagePage({super.key});
 
   @override
-  State<AddPassagePage> createState() =>
-      _AddPassagePageState();
+  State<AddPassagePage> createState() => _AddPassagePageState();
 }
 
-class _AddPassagePageState
-    extends State<AddPassagePage> {
-
+class _AddPassagePageState extends State<AddPassagePage> {
   String? selectedBus;
   String? selectedStation;
-
   DateTime? selectedDateTime;
 
   bool loading = false;
-
   String error = "";
 
-  /// 🔥 CHAUFFEUR INFOS
   String? chauffeurId;
   String? chauffeurNom;
 
-  /// 🔥 RECUPERER LE CHAUFFEUR DU BUS
-  Future<void> getChauffeurInfos(
-    String busId,
-  ) async {
-
-    final busDoc = await FirebaseFirestore
-        .instance
+  /// 🔥 GET CHAUFFEUR INFOS
+  Future<void> getChauffeurInfos(String busId) async {
+    final busDoc = await FirebaseFirestore.instance
         .collection('buses')
         .doc(busId)
         .get();
 
-    if (busDoc.exists) {
+    final data = busDoc.data();
 
+    if (data != null) {
       setState(() {
-
-        chauffeurId =
-            busDoc['chauffeurId'];
-
-        chauffeurNom =
-            busDoc['chauffeur'] ??
-                "Non défini";
+        chauffeurId = data['chauffeurId'];
+        chauffeurNom = data['chauffeur'] ?? "Non défini";
       });
     }
   }
 
-  /// 🚌 BUS STREAM
-  Stream<List<Map<String, dynamic>>>
-      getBuses() {
-
-    return FirebaseFirestore.instance
-        .collection('buses')
-        .snapshots()
-        .map((snapshot) {
-
-      return snapshot.docs.map((doc) {
-
-        return {
-          'id': doc.id,
-          'nom': doc['nom'],
-        };
-      }).toList();
-    });
+  /// 🚌 BUSES STREAM
+  Stream<List<Map<String, dynamic>>> getBuses() {
+    return FirebaseFirestore.instance.collection('buses').snapshots().map(
+      (snapshot) {
+        return snapshot.docs.map((doc) {
+          return {
+            'id': doc.id,
+            'nom': doc['nom'],
+          };
+        }).toList();
+      },
+    );
   }
 
-  /// 📍 STATION STREAM
-  Stream<List<Map<String, dynamic>>>
-      getStations() {
-
-    return FirebaseFirestore.instance
-        .collection('stations')
-        .snapshots()
-        .map((snapshot) {
-
-      return snapshot.docs.map((doc) {
-
-        return {
-          'id': doc.id,
-          'nom': doc['nom'],
-        };
-      }).toList();
-    });
+  /// 📍 STATIONS STREAM
+  Stream<List<Map<String, dynamic>>> getStations() {
+    return FirebaseFirestore.instance.collection('stations').snapshots().map(
+      (snapshot) {
+        return snapshot.docs.map((doc) {
+          return {
+            'id': doc.id,
+            'nom': doc['nom'],
+          };
+        }).toList();
+      },
+    );
   }
 
   /// 🕒 PICK TIME
   Future<void> pickTime() async {
-
     final time = await showTimePicker(
       context: context,
       initialTime: TimeOfDay.now(),
     );
 
     if (time != null) {
-
       final now = DateTime.now();
 
       setState(() {
-
         selectedDateTime = DateTime(
           now.year,
           now.month,
@@ -119,16 +92,12 @@ class _AddPassagePageState
 
   /// 💾 SAVE PASSAGE
   Future<void> savePassage() async {
-
     if (selectedBus == null ||
         selectedStation == null ||
         selectedDateTime == null) {
-
       setState(() {
-        error =
-            "Veuillez remplir tous les champs";
+        error = "Veuillez remplir tous les champs";
       });
-
       return;
     }
 
@@ -138,113 +107,68 @@ class _AddPassagePageState
     });
 
     try {
-
-      /// 🔥 RECUPERER LE NOM DU BUS
-      final busDoc = await FirebaseFirestore
-          .instance
+      final busDoc = await FirebaseFirestore.instance
           .collection("buses")
           .doc(selectedBus)
           .get();
 
-      final busNom =
-          busDoc.data()?['nom'] ??
-              "Bus inconnu";
+      final busNom = busDoc.data()?['nom'] ?? "Bus inconnu";
 
-      /// 🔥 RECUPERER LE NOM STATION
-      final stationDoc =
-          await FirebaseFirestore
-              .instance
-              .collection("stations")
-              .doc(selectedStation)
-              .get();
+      final stationDoc = await FirebaseFirestore.instance
+          .collection("stations")
+          .doc(selectedStation)
+          .get();
 
-      final stationNom =
-          stationDoc.data()?['nom'] ??
-              "Station inconnue";
+      final stationNom = stationDoc.data()?['nom'] ?? "Station inconnue";
 
-      /// 🔥 MODEL PASSAGE
       final passage = Passage(
-        id: const Uuid().v4(),
+  id: const Uuid().v4(),
 
-        busId: selectedBus!,
+  busId: selectedBus!,
+  busNom: busNom ?? '',
 
-        userId: chauffeurId ?? "",
+  chauffeurId: chauffeurId ?? '',
+  chauffeurNom: chauffeurNom ?? '',
 
-        stationId: selectedStation!,
+  stationId: selectedStation!,
+  userId: '',
 
-        heurePrevue:
-            selectedDateTime!,
+  heurePrevue: selectedDateTime!,
+  retard: 0,
+  status: 'a_l_heure',
+);
 
-        retard: 0,
-
-        statut: "En attente",
-      );
-
-      /// 🔥 SAVE FIRESTORE
       await FirebaseFirestore.instance
           .collection('passages')
           .doc(passage.id)
           .set({
-
         ...passage.toMap(),
-
-        /// 🔥 INFOS SUPPLEMENTAIRES
         "busNom": busNom,
-
-        "stationNom":
-            stationNom,
-
-        "chauffeur":
-            chauffeurNom,
-
-        "chauffeurId":
-            chauffeurId,
-
-        "status":
-            "En attente",
-
-        "date":
-            Timestamp.now(),
+        "stationNom": stationNom,
+        "chauffeurNom": chauffeurNom,
+        "chauffeurId": chauffeurId,
+        "createdAt": Timestamp.now(),
       });
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
-
+      ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-            "Passage programmé avec succès ✅",
-          ),
-
-          backgroundColor:
-              Colors.green,
-
-          behavior:
-              SnackBarBehavior.floating,
+          content: Text("Passage programmé avec succès ✅"),
+          backgroundColor: Colors.green,
+          behavior: SnackBarBehavior.floating,
         ),
       );
 
-      await Future.delayed(
-        const Duration(milliseconds: 700),
-      );
+      await Future.delayed(const Duration(milliseconds: 700));
 
       if (!mounted) return;
-
       Navigator.pop(context);
-
     } catch (e) {
-
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
-
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            "Erreur : $e",
-          ),
-
-          backgroundColor:
-              Colors.red,
+          content: Text("Erreur : $e"),
+          backgroundColor: Colors.red,
         ),
       );
     }
@@ -254,28 +178,15 @@ class _AddPassagePageState
     });
   }
 
-  /// 🎨 INPUT STYLE
-  InputDecoration style(
-    String label,
-    IconData icon,
-  ) {
-
+  /// 🎨 STYLE INPUT
+  InputDecoration style(String label, IconData icon) {
     return InputDecoration(
       labelText: label,
-
-      prefixIcon: Icon(
-        icon,
-        color: Colors.blue,
-      ),
-
+      prefixIcon: Icon(icon, color: Colors.blue),
       filled: true,
-
       fillColor: Colors.white,
-
       border: OutlineInputBorder(
-        borderRadius:
-            BorderRadius.circular(14),
-
+        borderRadius: BorderRadius.circular(14),
         borderSide: BorderSide.none,
       ),
     );
@@ -283,69 +194,41 @@ class _AddPassagePageState
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
       backgroundColor: Colors.grey[100],
 
-      /// 🔵 APPBAR
       appBar: AppBar(
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
-        elevation: 0,
-
         title: const Text(
           "Programmer un Passage",
-
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-          ),
+          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
         ),
       ),
 
       body: SingleChildScrollView(
         child: Column(
           children: [
-
-            /// 🔥 HEADER
             Container(
               width: double.infinity,
-
-              padding:
-                  const EdgeInsets.all(25),
-
-              decoration:
-                  const BoxDecoration(
+              padding: const EdgeInsets.all(25),
+              decoration: const BoxDecoration(
                 color: Colors.blue,
-
-                borderRadius:
-                    BorderRadius.vertical(
-                  bottom:
-                      Radius.circular(30),
+                borderRadius: BorderRadius.vertical(
+                  bottom: Radius.circular(30),
                 ),
               ),
-
               child: const Column(
                 children: [
-
                   SizedBox(height: 20),
-
-                  Icon(
-                    Icons.route,
-                    size: 70,
-                    color: Colors.white,
-                  ),
-
+                  Icon(Icons.route, size: 70, color: Colors.white),
                   SizedBox(height: 10),
-
                   Text(
                     "Planification de trajet",
-
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 22,
-                      fontWeight:
-                          FontWeight.bold,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
                 ],
@@ -355,152 +238,73 @@ class _AddPassagePageState
             const SizedBox(height: 25),
 
             Padding(
-              padding:
-                  const EdgeInsets.all(20),
-
+              padding: const EdgeInsets.all(20),
               child: Column(
                 children: [
-
                   /// 🚌 BUS
-                  StreamBuilder<
-                      List<
-                          Map<String,
-                              dynamic>>>(
+                  StreamBuilder<List<Map<String, dynamic>>>(
                     stream: getBuses(),
-
-                    builder:
-                        (context, snapshot) {
-
+                    builder: (context, snapshot) {
                       if (!snapshot.hasData) {
-
-                        return const Center(
-                          child:
-                              CircularProgressIndicator(),
-                        );
+                        return const CircularProgressIndicator();
                       }
 
-                      final buses =
-                          snapshot.data!;
+                      final buses = snapshot.data!;
 
-                      return DropdownButtonFormField<
-                          String>(
+                      return DropdownButtonFormField<String>(
+  value: selectedBus,
+  isExpanded: true,
+  decoration: style("Bus", Icons.directions_bus),
+  items: buses.map((bus) {
+    return DropdownMenuItem<String>(
+      value: bus['id'],
+      child: Text(bus['nom']),
+    );
+  }).toList(),
+  onChanged: (value) async {
+    setState(() {
+      selectedBus = value;
+      selectedStation = null;
+      chauffeurId = null;
+      chauffeurNom = null;
+    });
 
-                        initialValue:
-                            buses.any(
-                          (b) =>
-                              b['id'] ==
-                              selectedBus,
-                        )
-                                ? selectedBus
-                                : null,
-
-                        isExpanded: true,
-
-                        decoration: style(
-                          "Bus",
-                          Icons
-                              .directions_bus,
-                        ),
-
-                        items:
-                            buses.map((bus) {
-
-                          return DropdownMenuItem<
-                              String>(
-
-                            value:
-                                bus['id'],
-
-                            child: Text(
-                              bus['nom'],
-                            ),
-                          );
-                        }).toList(),
-
-                        onChanged: (value) async {
-
-                          setState(() {
-                            selectedBus =
-                                value;
-                          });
-
-                          /// 🔥 CHARGER CHAUFFEUR
-                          await getChauffeurInfos(
-                            value!,
-                          );
-                        },
-                      );
+    if (value != null) {
+      await getChauffeurInfos(value);
+    }
+  },
+);
                     },
                   ),
 
                   const SizedBox(height: 18),
 
                   /// 📍 STATION
-                  StreamBuilder<
-                      List<
-                          Map<String,
-                              dynamic>>>(
-                    stream:
-                        getStations(),
-
-                    builder:
-                        (context, snapshot) {
-
+                  StreamBuilder<List<Map<String, dynamic>>>(
+                    stream: getStations(),
+                    builder: (context, snapshot) {
                       if (!snapshot.hasData) {
-
-                        return const Center(
-                          child:
-                              CircularProgressIndicator(),
-                        );
+                        return const CircularProgressIndicator();
                       }
 
-                      final stations =
-                          snapshot.data!;
+                      final stations = snapshot.data!;
 
-                      return DropdownButtonFormField<
-                          String>(
-
-                        initialValue:
-                            stations.any(
-                          (s) =>
-                              s['id'] ==
-                              selectedStation,
-                        )
-                                ? selectedStation
-                                : null,
-
-                        isExpanded: true,
-
-                        decoration: style(
-                          "Station",
-                          Icons.location_on,
-                        ),
-
-                        items:
-                            stations.map(
-                          (station) {
-
-                            return DropdownMenuItem<
-                                String>(
-
-                              value:
-                                  station['id'],
-
-                              child: Text(
-                                station['nom'],
-                              ),
-                            );
-                          },
-                        ).toList(),
-
-                        onChanged: (value) {
-
-                          setState(() {
-                            selectedStation =
-                                value;
-                          });
-                        },
-                      );
+                    return DropdownButtonFormField<String>(
+  initialValue: selectedStation,
+  isExpanded: true,
+  decoration: style("Station", Icons.location_on),
+  items: stations.map((station) {
+    return DropdownMenuItem<String>(
+      value: station['id'],
+      child: Text(station['nom']),
+    );
+  }).toList(),
+  onChanged: (value) {
+    setState(() {
+      selectedStation = value;
+    });
+  },
+);
                     },
                   ),
 
@@ -509,57 +313,22 @@ class _AddPassagePageState
                   /// 🕒 TIME
                   InkWell(
                     onTap: pickTime,
-
-                    borderRadius:
-                        BorderRadius.circular(
-                            14),
-
                     child: Container(
-                      width:
-                          double.infinity,
-
-                      padding:
-                          const EdgeInsets
-                              .all(18),
-
-                      decoration:
-                          BoxDecoration(
-                        color:
-                            Colors.white,
-
-                        borderRadius:
-                            BorderRadius
-                                .circular(14),
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(18),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(14),
                       ),
-
                       child: Row(
                         children: [
-
-                          const Icon(
-                            Icons.access_time,
-                            color:
-                                Colors.blue,
-                          ),
-
-                          const SizedBox(
-                              width: 12),
-
+                          const Icon(Icons.access_time, color: Colors.blue),
+                          const SizedBox(width: 12),
                           Text(
-
-                            selectedDateTime ==
-                                    null
+                            selectedDateTime == null
                                 ? "Choisir l'heure"
-
-                                : DateFormat(
-                                    "HH:mm")
-                                    .format(
-                                    selectedDateTime!,
-                                  ),
-
-                            style:
-                                const TextStyle(
-                              fontSize: 16,
-                            ),
+                                : DateFormat("HH:mm").format(selectedDateTime!),
+                            style: const TextStyle(fontSize: 16),
                           ),
                         ],
                       ),
@@ -568,18 +337,12 @@ class _AddPassagePageState
 
                   if (error.isNotEmpty)
                     Padding(
-                      padding:
-                          const EdgeInsets
-                              .only(top: 12),
-
+                      padding: const EdgeInsets.only(top: 12),
                       child: Text(
                         error,
-
-                        style:
-                            const TextStyle(
+                        style: const TextStyle(
                           color: Colors.red,
-                          fontWeight:
-                              FontWeight.bold,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
                     ),
@@ -590,44 +353,22 @@ class _AddPassagePageState
                   SizedBox(
                     width: double.infinity,
                     height: 55,
-
                     child: ElevatedButton(
-                      onPressed:
-                          loading
-                              ? null
-                              : savePassage,
-
-                      style:
-                          ElevatedButton.styleFrom(
-                        backgroundColor:
-                            Colors.blue,
-
-                        shape:
-                            RoundedRectangleBorder(
-                          borderRadius:
-                              BorderRadius
-                                  .circular(
-                                      15),
+                      onPressed: loading ? null : savePassage,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(15),
                         ),
                       ),
-
                       child: loading
-
-                          ? const CircularProgressIndicator(
-                              color:
-                                  Colors.white,
-                            )
-
+                          ? const CircularProgressIndicator(color: Colors.white)
                           : const Text(
                               "Programmer Passage",
-
                               style: TextStyle(
                                 fontSize: 18,
-                                color:
-                                    Colors.white,
-                                fontWeight:
-                                    FontWeight
-                                        .bold,
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
                     ),
