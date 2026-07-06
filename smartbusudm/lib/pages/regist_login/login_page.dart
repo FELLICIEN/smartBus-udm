@@ -69,7 +69,9 @@ class _ConnexionState extends State<Connexion> {
     /// ✅ USER EXISTE
     if (userCredential.user != null) {
       if (!mounted) return;
-snackBar("Connexion réussie ✅!");
+  ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Connexion réussie",style: TextStyle(backgroundColor: Colors.green),)),
+      );
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(

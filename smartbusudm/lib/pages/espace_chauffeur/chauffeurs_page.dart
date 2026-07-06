@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:smartbusudm/services/bacground_service.dart';
 
 class ChauffeurPage extends StatefulWidget {
@@ -13,9 +14,11 @@ class ChauffeurPage extends StatefulWidget {
 class _ChauffeurPageState extends State<ChauffeurPage>
     with SingleTickerProviderStateMixin {
   bool gpsActif = false;
+  bool gpsEnAttente = false; // ✅ NOUVEAU : évite le double-tap pendant le démarrage
   String busNom = "Chargement...";
   String busStatus = "Disponible";
   String busId = "";
+  String? gpsError; // ✅ NOUVEAU : message d'erreur remonté par le service
 
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
@@ -30,6 +33,7 @@ class _ChauffeurPageState extends State<ChauffeurPage>
   void initState() {
     super.initState();
     chargerBus();
+    _ecouterBus(); // ✅ NOUVEAU : écoute en temps réel du statut du bus
 
     _pulseController = AnimationController(
       vsync: this,
@@ -74,50 +78,88 @@ class _ChauffeurPageState extends State<ChauffeurPage>
         busNom = data['nom'] ?? 'BUS';
         busStatus = data['status'] ?? 'Disponible';
         gpsActif = data['tracking'] ?? false;
+        gpsError = data['gpsError'];
       });
     }
   }
 
-  Future<void> demarrerGPS() async {
-    try {
-      final busRef = FirebaseFirestore.instance
-          .collection('buses')
-          .doc(busId);
+  /// ✅ NOUVEAU : écoute Firestore en continu pour refléter l'état réel
+  /// écrit par le service en arrière-plan (et pas seulement l'état
+  /// optimiste local), et afficher une éventuelle erreur GPS.
+  void _ecouterBus() {
+    FirebaseFirestore.instance
+        .collection('buses')
+        .where('chauffeurId', isEqualTo: chauffeurId)
+        .limit(1)
+        .snapshots()
+        .listen((snap) {
+      if (snap.docs.isEmpty || !mounted) return;
+      final data = snap.docs.first.data();
+      setState(() {
+        busId = snap.docs.first.id;
+        busNom = data['nom'] ?? busNom;
+        busStatus = data['status'] ?? busStatus;
+        gpsActif = data['tracking'] ?? false;
+        gpsError = data['gpsError'];
+        gpsEnAttente = false;
+      });
+    });
+  }
 
-      await busRef.update({'status': 'En service', 'tracking': true});
+  Future<void> demarrerGPS() async {
+    if (gpsEnAttente) return;
+    setState(() => gpsEnAttente = true);
+
+    try {
+      // ✅ On vérifie/demande les permissions AVANT de démarrer le service,
+      // pour éviter que 'tracking' passe à true sans coordonnées valides.
+      bool serviceActif = await Geolocator.isLocationServiceEnabled();
+      if (!serviceActif) {
+        _showSnack("Active la localisation (GPS) sur ton téléphone.",
+            Colors.red.shade700, Icons.location_off);
+        setState(() => gpsEnAttente = false);
+        return;
+      }
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.deniedForever) {
+        _showSnack(
+          "Permission refusée définitivement. Active-la manuellement dans les paramètres de l'application.",
+          Colors.red.shade700,
+          Icons.block,
+        );
+        setState(() => gpsEnAttente = false);
+        return;
+      }
+      if (permission == LocationPermission.denied) {
+        _showSnack("Autorisation de localisation requise.",
+            Colors.red.shade700, Icons.gps_off);
+        setState(() => gpsEnAttente = false);
+        return;
+      }
+
+      // ✅ On ne force plus 'tracking: true' ici : c'est le service en
+      // arrière-plan (bacground_service.dart) qui l'écrit une fois qu'il
+      // a réellement confirmé les permissions et récupéré le bus.
       await BackgroundLocationService.startService();
 
-      setState(() {
-        gpsActif = true;
-        busStatus = "En service";
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Row(
-            children: [
-              Icon(Icons.gps_fixed, color: Colors.white),
-              SizedBox(width: 10),
-              Text("GPS démarré avec succès"),
-            ],
-          ),
-          backgroundColor: Colors.green.shade700,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-      );
+      _showSnack("Démarrage du GPS...", Colors.green.shade700,
+          Icons.gps_fixed);
     } catch (e) {
       debugPrint("Erreur START GPS: $e");
+      _showSnack("Erreur lors du démarrage du GPS.", Colors.red.shade700,
+          Icons.error_outline);
+    } finally {
+      if (mounted) setState(() => gpsEnAttente = false);
     }
   }
 
   Future<void> arreterGPS() async {
     try {
-      final busRef = FirebaseFirestore.instance
-          .collection('buses')
-          .doc(busId);
+      final busRef = FirebaseFirestore.instance.collection('buses').doc(busId);
 
       await busRef.update({'status': 'Disponible', 'tracking': false});
       await BackgroundLocationService.stopService();
@@ -127,25 +169,30 @@ class _ChauffeurPageState extends State<ChauffeurPage>
         busStatus = "Disponible";
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Row(
-            children: [
-              Icon(Icons.gps_off, color: Colors.white),
-              SizedBox(width: 10),
-              Text("GPS arrêté"),
-            ],
-          ),
-          backgroundColor: Colors.red.shade700,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-      );
+      _showSnack("GPS arrêté", Colors.red.shade700, Icons.gps_off);
     } catch (e) {
       debugPrint("Erreur STOP GPS: $e");
     }
+  }
+
+  void _showSnack(String message, Color color, IconData icon) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(icon, color: Colors.white),
+            const SizedBox(width: 10),
+            Expanded(child: Text(message)),
+          ],
+        ),
+        backgroundColor: color,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+      ),
+    );
   }
 
   Stream<QuerySnapshot> getPassages() {
@@ -195,6 +242,7 @@ class _ChauffeurPageState extends State<ChauffeurPage>
                           ),
                           boxShadow: [
                             BoxShadow(
+                              // ignore: deprecated_member_use
                               color: const Color(0xff6C63FF).withOpacity(0.5),
                               blurRadius: 12,
                               offset: const Offset(0, 4),
@@ -260,7 +308,38 @@ class _ChauffeurPageState extends State<ChauffeurPage>
                     ],
                   ),
 
-                  const SizedBox(height: 28),
+                  const SizedBox(height: 20),
+
+                  /// ✅ NOUVEAU : bandeau d'erreur GPS si le service a signalé un problème
+                  if (gpsError != null) ...[
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        // ignore: deprecated_member_use
+                        color: Colors.red.shade900.withOpacity(0.4),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: Colors.red.shade400),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.warning_amber_rounded,
+                              color: Colors.orangeAccent),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              gpsError!,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
 
                   /// BUS CARD
                   Container(
@@ -297,7 +376,7 @@ class _ChauffeurPageState extends State<ChauffeurPage>
                               size: 36,
                             ),
                             const SizedBox(width: 12),
-                            Text('Bus '+ busNom,
+                            Text('Bus $busNom',
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 26,
@@ -349,13 +428,21 @@ class _ChauffeurPageState extends State<ChauffeurPage>
                                           ]
                                         : [],
                                   ),
-                                  child: Icon(
-                                    gpsActif
-                                        ? Icons.gps_fixed
-                                        : Icons.gps_off,
-                                    color: Colors.white,
-                                    size: 28,
-                                  ),
+                                  child: gpsEnAttente
+                                      ? const Padding(
+                                          padding: EdgeInsets.all(14),
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: Colors.white,
+                                          ),
+                                        )
+                                      : Icon(
+                                          gpsActif
+                                              ? Icons.gps_fixed
+                                              : Icons.gps_off,
+                                          color: Colors.white,
+                                          size: 28,
+                                        ),
                                 ),
                               ),
                               const SizedBox(width: 16),
@@ -363,7 +450,11 @@ class _ChauffeurPageState extends State<ChauffeurPage>
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    gpsActif ? "GPS ACTIF" : "GPS INACTIF",
+                                    gpsEnAttente
+                                        ? "DEMARRAGE..."
+                                        : (gpsActif
+                                            ? "GPS ACTIF"
+                                            : "GPS INACTIF"),
                                     style: const TextStyle(
                                       color: Colors.white,
                                       fontWeight: FontWeight.bold,
@@ -395,13 +486,13 @@ class _ChauffeurPageState extends State<ChauffeurPage>
                     children: [
                       Expanded(
                         child: GestureDetector(
-                          onTap: gpsActif ? null : demarrerGPS,
+                          onTap: (gpsActif || gpsEnAttente) ? null : demarrerGPS,
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 300),
                             padding: const EdgeInsets.symmetric(vertical: 18),
                             decoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(18),
-                              gradient: gpsActif
+                              gradient: (gpsActif || gpsEnAttente)
                                   ? LinearGradient(
                                       colors: [
                                         Colors.grey.shade700,
@@ -414,7 +505,7 @@ class _ChauffeurPageState extends State<ChauffeurPage>
                                         Color(0xff16A34A),
                                       ],
                                     ),
-                              boxShadow: gpsActif
+                              boxShadow: (gpsActif || gpsEnAttente)
                                   ? []
                                   : [
                                       BoxShadow(
@@ -607,7 +698,8 @@ class _ChauffeurPageState extends State<ChauffeurPage>
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                      Text( 'Station '+ p['stationNom'] ?? 'Station',
+                                      Text(
+                                        'Station ${p['stationNom'] ?? 'Station'}',
                                         style: const TextStyle(
                                           color: Colors.white,
                                           fontWeight: FontWeight.w600,

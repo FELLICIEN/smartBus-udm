@@ -10,11 +10,14 @@ class HelpPage extends StatelessWidget {
 
       appBar: AppBar(
         title: const Text("Aide & Support",
-        style: TextStyle(color: Colors.white,
-        fontSize: 30,
-        fontWeight: FontWeight.bold,
-        fontFamily: "BoostPlay",
-        ),),
+          style: TextStyle(
+        
+                                  color: Colors.white,
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.bold,
+                                  fontStyle: FontStyle.italic,
+                                  fontFamily: 'serif',
+          ),),
         centerTitle: true,
         elevation: 0,
         backgroundColor: Colors.blue,

@@ -28,6 +28,23 @@ class _AdminBusPageState extends State<AdminBusPage> {
         .snapshots();
   }
 
+  /// 🔒 Vérifie qu'un chauffeur n'est pas déjà assigné à un AUTRE bus
+  /// (currentBusId est exclu de la vérification, pour permettre de garder
+  /// le chauffeur déjà assigné à ce bus précis)
+  Future<bool> isChauffeurAvailable(
+    String chauffeurId,
+    String currentBusId,
+  ) async {
+    final existing = await FirebaseFirestore.instance
+        .collection('buses')
+        .where('chauffeurId', isEqualTo: chauffeurId)
+        .get();
+
+    final assignedToOtherBus =
+        existing.docs.any((doc) => doc.id != currentBusId);
+    return !assignedToOtherBus;
+  }
+
   Color getColor(String status) {
     switch (status.toLowerCase()) {
       case "disponible":
@@ -124,6 +141,8 @@ class _AdminBusPageState extends State<AdminBusPage> {
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setStateModal) {
+            String modalError = "";
+
             return Padding(
               padding: EdgeInsets.only(
                 left: 16,
@@ -160,43 +179,67 @@ class _AdminBusPageState extends State<AdminBusPage> {
                     ),
                     const SizedBox(height: 12),
 
-                    /// 👇 CHAUFFEUR DROPDOWN
+                    /// 👇 CHAUFFEUR DROPDOWN — n'affiche que les chauffeurs
+                    /// LIBRES + celui déjà assigné à CE bus (garantit la
+                    /// relation 1-pour-1 entre bus et chauffeur)
                     StreamBuilder<QuerySnapshot>(
-                      stream: getChauffeurs(),
-                      builder: (context, snapshot) {
-                        if (!snapshot.hasData) {
+                      stream: getBuses(),
+                      builder: (context, busSnapshot) {
+                        if (!busSnapshot.hasData) {
                           return const CircularProgressIndicator();
                         }
 
-                        final chauffeurs = snapshot.data!.docs;
+                        // 🔒 chauffeurs assignés à un AUTRE bus que celui-ci
+                        final assignedElsewhere = busSnapshot.data!.docs
+                            .where((doc) => doc.id != id)
+                            .map((doc) => (doc.data()
+                                as Map<String, dynamic>)['chauffeurId'])
+                            .where((cid) => cid != null)
+                            .cast<String>()
+                            .toSet();
 
-                        return Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
-                          decoration: BoxDecoration(
-                            border: Border.all(color: Colors.grey),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: DropdownButton<String>(
-                            isExpanded: true,
-                            value: selectedChauffeurId,
-                            hint: const Text("Choisir un chauffeur"),
-                            underline: const SizedBox(),
-                            items: chauffeurs.map((doc) {
-                              final d = doc.data() as Map<String, dynamic>;
-                              return DropdownMenuItem(
-                                value: doc.id,
-                                child: Text(d['nom'] ?? "Sans nom"),
-                              );
-                            }).toList(),
-                            onChanged: (value) {
-                              setStateModal(() {
-                                selectedChauffeurId = value;
-                                selectedChauffeurName = chauffeurs
-                                    .firstWhere((e) => e.id == value)
-                                    .get('nom');
-                              });
-                            },
-                          ),
+                        return StreamBuilder<QuerySnapshot>(
+                          stream: getChauffeurs(),
+                          builder: (context, snapshot) {
+                            if (!snapshot.hasData) {
+                              return const CircularProgressIndicator();
+                            }
+
+                            final chauffeurs = snapshot.data!.docs
+                                .where((doc) =>
+                                    !assignedElsewhere.contains(doc.id))
+                                .toList();
+
+                            return Container(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 12),
+                              decoration: BoxDecoration(
+                                border: Border.all(color: Colors.grey),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: DropdownButton<String>(
+                                isExpanded: true,
+                                value: selectedChauffeurId,
+                                hint: const Text("Choisir un chauffeur"),
+                                underline: const SizedBox(),
+                                items: chauffeurs.map((doc) {
+                                  final d = doc.data() as Map<String, dynamic>;
+                                  return DropdownMenuItem(
+                                    value: doc.id,
+                                    child: Text(d['nom'] ?? "Sans nom"),
+                                  );
+                                }).toList(),
+                                onChanged: (value) {
+                                  setStateModal(() {
+                                    selectedChauffeurId = value;
+                                    selectedChauffeurName = chauffeurs
+                                        .firstWhere((e) => e.id == value)
+                                        .get('nom');
+                                  });
+                                },
+                              ),
+                            );
+                          },
                         );
                       },
                     ),
@@ -238,12 +281,41 @@ class _AdminBusPageState extends State<AdminBusPage> {
                       ),
                     ),
 
+                    if (modalError.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      Text(
+                        modalError,
+                        style: const TextStyle(color: Colors.red),
+                      ),
+                    ],
+
                     const SizedBox(height: 20),
 
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
                         onPressed: () async {
+                          if (selectedChauffeurId == null) {
+                            setStateModal(() {
+                              modalError = "Veuillez choisir un chauffeur";
+                            });
+                            return;
+                          }
+
+                          // 🔒 Double vérification anti-conflit (protège
+                          // contre deux modifications concurrentes)
+                          final available = await isChauffeurAvailable(
+                            selectedChauffeurId!,
+                            id,
+                          );
+                          if (!available) {
+                            setStateModal(() {
+                              modalError =
+                                  "Ce chauffeur est déjà assigné à un autre bus";
+                            });
+                            return;
+                          }
+
                           await FirebaseFirestore.instance
                               .collection('buses')
                               .doc(id)
@@ -256,7 +328,7 @@ class _AdminBusPageState extends State<AdminBusPage> {
                             'chauffeur': selectedChauffeurName,
                           });
 
-                          Navigator.pop(context);
+                          if (context.mounted) Navigator.pop(context);
                         },
                         child: const Text("Enregistrer"),
                       ),
@@ -421,11 +493,11 @@ backgroundColor: Theme.of(context).primaryColor,
         onTap: (i) {
           if (i == 1) {
             Navigator.push(context,
-                MaterialPageRoute(builder: (_) => const AddBusPage()));
+                MaterialPageRoute(builder: (_) => const AdminBusPage()));
           }
           if (i == 2) {
             Navigator.push(context,
-                MaterialPageRoute(builder: (_) => const BusPage()));
+                MaterialPageRoute(builder: (_) => const AddBusPage()));
           }
         },
       ),

@@ -74,8 +74,14 @@ class PolitiqueConfidentialitePage extends StatelessWidget {
           centerTitle: true,
           title:  Text(
             "Politique de confidentialité",
-             style: TextStyle(fontFamily: "BoostPlay",fontSize: 30,color:Colors.white,
-            ),
+              style: TextStyle(
+        
+                                  color: Colors.white,
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.bold,
+                                  fontStyle: FontStyle.italic,
+                                  fontFamily: 'serif',
+          ),
           ),
         ),
       

@@ -11,7 +11,14 @@ class AproposPage extends StatelessWidget {
       appBar: AppBar(
         elevation: 0,
         backgroundColor: Theme.of(context).primaryColor,
-        title: Text("SmartBus ~ A propos", style: TextStyle(fontFamily: "BoostPlay",fontSize: 30,color:Colors.white,)),
+        title: Text("SmartBus ~ A propos",   style: TextStyle(
+        
+                                  color: Colors.white,
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.bold,
+                                  fontStyle: FontStyle.italic,
+                                  fontFamily: 'serif',
+          ),),
         centerTitle: true,
 
         ),

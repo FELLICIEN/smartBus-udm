@@ -43,7 +43,6 @@ class _AddStationPageState extends State<AddStationPage> {
 
       if (!mounted) return;
 
-      /// ✅ SUCCESS SNACKBAR
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text("Station ajoutée avec succès ✅"),
@@ -59,11 +58,9 @@ class _AddStationPageState extends State<AddStationPage> {
       await Future.delayed(const Duration(milliseconds: 500));
       // ignore: use_build_context_synchronously
       Navigator.pop(context);
-
     } catch (e) {
       if (!mounted) return;
 
-      /// ❌ ERROR SNACKBAR
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text("Erreur : $e"),
@@ -76,15 +73,33 @@ class _AddStationPageState extends State<AddStationPage> {
     setState(() => loading = false);
   }
 
-  InputDecoration inputStyle(String label, IconData icon) {
-    return InputDecoration(
-      labelText: label,
-      prefixIcon: Icon(icon, color: Colors.blue),
-      filled: true,
-      fillColor: Colors.white,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide.none,
+  /// 🎨 Champ de saisie harmonisé avec le reste de l'app
+  Widget field({
+    required String label,
+    required IconData icon,
+    required TextEditingController controller,
+    int maxLines = 1,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: TextField(
+        controller: controller,
+        maxLines: maxLines,
+        decoration: InputDecoration(
+          labelText: label,
+          prefixIcon: Icon(icon, color: const Color(0xFF1565C0)),
+          filled: true,
+          fillColor: Colors.transparent,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide.none,
+          ),
+          contentPadding:
+              const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+        ),
       ),
     );
   }
@@ -93,127 +108,211 @@ class _AddStationPageState extends State<AddStationPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF4F6FA),
-
-      /// 🔵 APPBAR AJOUTÉ
-      appBar: AppBar(
-        centerTitle: true,
-        title: const Text("Ajouter une station",
-        style: TextStyle(
-                fontSize: 30,
-                fontWeight:FontWeight.bold,
-                color: Colors.white,
-                fontFamily: "BoostPlay",
-                ),
-        ),
-        backgroundColor: Colors.blue,
-        elevation: 0,
-      ),
-
       body: SingleChildScrollView(
         child: Column(
           children: [
-
-            /// 🔵 HEADER PRO
+            /// 🌈 HEADER DÉGRADÉ (cohérent avec le reste de SmartBus)
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.only(top: 55, bottom: 55),
               decoration: const BoxDecoration(
-                color: Colors.blue,
-                borderRadius: BorderRadius.vertical(
-                  bottom: Radius.circular(25),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Color(0xFF42A5F5), Color(0xFF1565C0)],
+                ),
+                borderRadius: BorderRadius.only(
+                  bottomLeft: Radius.circular(35),
+                  bottomRight: Radius.circular(35),
                 ),
               ),
-              child: const Column(
-                children: [
-                  Icon(Icons.location_on,
-                      size: 70, color: Colors.white),
-                  SizedBox(height: 10),
-                  Text(
-                    "SmartBus ",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  SizedBox(height: 5),
-                  Text(
-                    "Création d’une station",
-                    style: TextStyle(color: Colors.white70,
-                    fontWeight: FontWeight.bold,
-                    ),
-                    
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 25),
-
-            /// 🧾 FORMULAIRE
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Column(
                 children: [
-
-                  TextField(
-                    controller: nomController,
-                    decoration: inputStyle("Nom de la station", Icons.location_on),
-                  ),
-
-                  const SizedBox(height: 15),
-
-                  TextField(
-                    controller: descriptionController,
-                    decoration: inputStyle("Description", Icons.description),
-                  ),
-
-                  const SizedBox(height: 15),
-
-                  TextField(
-                    controller: addresseController,
-                    decoration: inputStyle("Adresse", Icons.location_pin),
-                  ),
-
-                  if (error.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 10),
-                      child: Text(
-                        error,
-                        style: const TextStyle(
-                          color: Colors.red,
-                          fontWeight: FontWeight.bold,
+                  Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.arrow_back, color: Colors.white),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                      const Expanded(
+                        child: Text(
+                          "Nouvelle station",
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            fontFamily: "BoostPlay",
+                          ),
                         ),
                       ),
-                    ),
-
-                  const SizedBox(height: 25),
-
-                  /// 🔘 BUTTON
-                  SizedBox(
-                    width: double.infinity,
-                    height: 50,
-                    child: ElevatedButton(
-                      onPressed: loading ? null : saveStation,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: loading
-                          ? const CircularProgressIndicator(color: Colors.white)
-                          : const Text(
-                              "Ajouter une station",
-                              style: TextStyle(fontSize: 16,
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,),
-                            ),
-                    ),
+                      const SizedBox(width: 48), // équilibre la flèche retour
+                    ],
+                  ),
+                  const SizedBox(height: 15),
+                  const Text(
+                    "Ajoute un nouvel arrêt sur le réseau SmartBus",
+                    style: TextStyle(color: Colors.white70, fontSize: 13),
                   ),
                 ],
               ),
             ),
+
+            /// 🔵 ICÔNE FLOTTANTE EN SUPERPOSITION DU HEADER
+            Transform.translate(
+              offset: const Offset(0, -35),
+              child: Container(
+                width: 70,
+                height: 70,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      // ignore: deprecated_member_use
+                      color: Colors.black.withOpacity(0.12),
+                      blurRadius: 15,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.location_on,
+                  size: 36,
+                  color: Color(0xFF1565C0),
+                ),
+              ),
+            ),
+
+            /// 🧾 CARTE FORMULAIRE
+            Transform.translate(
+              offset: const Offset(0, -20),
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 20),
+                padding: const EdgeInsets.all(22),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(25),
+                  boxShadow: [
+                    BoxShadow(
+                      // ignore: deprecated_member_use
+                      color: Colors.black.withOpacity(0.06),
+                      blurRadius: 20,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      "Informations de la station",
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+
+                    field(
+                      label: "Nom de la station",
+                      icon: Icons.location_on_outlined,
+                      controller: nomController,
+                    ),
+                    const SizedBox(height: 16),
+
+                    field(
+                      label: "Description",
+                      icon: Icons.description_outlined,
+                      controller: descriptionController,
+                      maxLines: 3,
+                    ),
+                    const SizedBox(height: 16),
+
+                    field(
+                      label: "Adresse",
+                      icon: Icons.map_outlined,
+                      controller: addresseController,
+                    ),
+
+                    if (error.isNotEmpty) ...[
+                      const SizedBox(height: 14),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: Colors.red.shade50,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.red.shade200),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.error_outline,
+                                color: Colors.red, size: 18),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                error,
+                                style: const TextStyle(
+                                  color: Colors.red,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+
+                    const SizedBox(height: 26),
+
+                    SizedBox(
+                      width: double.infinity,
+                      height: 54,
+                      child: ElevatedButton(
+                        onPressed: loading ? null : saveStation,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF1565C0),
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                        child: loading
+                            ? const SizedBox(
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2.5,
+                                ),
+                              )
+                            : Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: const [
+                                  Icon(Icons.add_location_alt_outlined,
+                                      color: Colors.white, size: 20),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    "Ajouter la station",
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
           ],
         ),
       ),

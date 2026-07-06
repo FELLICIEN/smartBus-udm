@@ -51,9 +51,12 @@ class _ParametresState extends State<Parametres> {
         title: const Text(
           "SmartBus ~ Paramètres",
           style: TextStyle(
-            fontFamily: "BoostPlay",
-            color: Colors.white,
-            fontSize: 22,
+        
+                                  color: Colors.white,
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.bold,
+                                  fontStyle: FontStyle.italic,
+                                  fontFamily: 'serif',
           ),
         ),
         backgroundColor: Colors.blue,

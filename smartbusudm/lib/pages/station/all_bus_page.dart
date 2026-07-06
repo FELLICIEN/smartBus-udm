@@ -84,7 +84,7 @@ class _AllBusPageState extends State<AllBusPage> {
         children: [
 
           /// 🔥 HEADER
-          Container(
+          SizedBox(
             height: 230,
             width: double.infinity,
             child: ClipRRect(
@@ -116,8 +116,6 @@ class _AllBusPageState extends State<AllBusPage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-
-
                           const Spacer(),
 
                           /// TITRE
@@ -224,6 +222,12 @@ class _AllBusPageState extends State<AllBusPage> {
                     final chauffeurId = bus['chauffeurId'];
                     final createdAt = formatDate(bus['date']);
                     final color = getColor(status);
+
+                    // ✅ Coordonnées de secours = Université de Moundou,
+                    // utilisées uniquement le temps que la vraie position
+                    // arrive (au lieu du Golfe d'Aden précédemment codé en dur).
+                    const double defaultLat = 8.5667;
+                    const double defaultLng = 16.0833;
 
                     return Container(
                       margin: const EdgeInsets.only(bottom: 14),
@@ -375,9 +379,11 @@ class _AllBusPageState extends State<AllBusPage> {
                                           builder: (_) => Gps(
                                             busId: busId,
                                             busName: nom,
-                                            longitude : 48.8566,
-                                            latitude : 12.2215,
-                                                
+                                            // ✅ Coordonnées de secours corrigées :
+                                            // Université de Moundou au lieu du
+                                            // Golfe d'Aden (12.2215, 48.8566).
+                                            latitude: defaultLat,
+                                            longitude: defaultLng,
                                           ),
                                         ),
                                       );
@@ -394,11 +400,11 @@ class _AllBusPageState extends State<AllBusPage> {
                                             BorderRadius.circular(12),
                                       ),
                                     ),
-                                    icon: Icon(Icons.location_on_outlined,
+                                    icon: const Icon(Icons.location_on_outlined,
                                         size: 18),
-                                    label: Text(
+                                    label: const Text(
                                       "Voir la position GPS",
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontWeight: FontWeight.w600,
                                         fontSize: 14,
                                       ),
