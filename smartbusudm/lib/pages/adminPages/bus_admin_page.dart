@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:smartbusudm/pages/add/add_bus.dart';
-import 'package:smartbusudm/pages/bus/buspage.dart';
 
 class AdminBusPage extends StatefulWidget {
   const AdminBusPage({super.key});
@@ -479,28 +478,54 @@ class _AdminBusPageState extends State<AdminBusPage> {
         },
       ),
 
-      bottomNavigationBar: BottomNavigationBar(
+        /// 🔥 BOTTOM NAVIGATION
+      bottomNavigationBar:
+          BottomNavigationBar(
         currentIndex: 0,
-backgroundColor: Theme.of(context).primaryColor,
-        selectedItemColor: Colors.yellow,
-        unselectedItemColor: Colors.white,
-        items: const [
-          BottomNavigationBarItem(
-              icon: Icon(Icons.directions_bus), label: "Bus"),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.add_circle), label: "Ajouter"),
-        ],
-        onTap: (i) {
-          if (i == 1) {
-            Navigator.push(context,
-                MaterialPageRoute(builder: (_) => const AdminBusPage()));
-          }
-          if (i == 2) {
-            Navigator.push(context,
-                MaterialPageRoute(builder: (_) => const AddBusPage()));
+
+        backgroundColor:
+            Theme.of(context)
+                .primaryColor,
+
+        selectedItemColor:
+            Colors.white,
+
+        unselectedItemColor:
+            Colors.white70,
+
+        onTap: (index) {
+
+          /// ➕ AJOUT
+          if (index == 1) {
+            Navigator.push(
+              context,
+
+              MaterialPageRoute(
+                builder: (_) =>
+                    const AddBusPage(),
+              ),
+            );
           }
         },
+
+        items: const [
+
+          BottomNavigationBarItem(
+            icon:
+                Icon(Icons.location_on),
+
+            label: "Bus",
+          ),
+
+          BottomNavigationBarItem(
+            icon:
+                Icon(Icons.add_circle),
+
+            label: "Ajouter",
+          ),
+        ],
       ),
     );
   }
 }
+
