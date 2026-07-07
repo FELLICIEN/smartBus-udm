@@ -96,7 +96,11 @@ packages:
       sha256: "0cdc8205feb73a779730782f885aaa8c23fa2e02ab57caec6076bbdcef473a41"
       url: "https://pub.dev"
     source: hosted
+<<<<<<< HEAD
     version: "5.5.0"
+=======
+    version: "5.3.0"
+>>>>>>> 006c8ba (depot1)
   code_assets:
     dependency: transitive
     description:
@@ -447,7 +451,11 @@ packages:
       sha256: "2a743920d81b7910627f68ee2c9ac1fc0bfee32b9fc3403587d7c6791ca12f80"
       url: "https://pub.dev"
     source: hosted
+<<<<<<< HEAD
     version: "4.12.0"
+=======
+    version: "4.11.0"
+>>>>>>> 006c8ba (depot1)
   latlong2:
     dependency: "direct main"
     description:
@@ -878,5 +886,10 @@ packages:
     source: hosted
     version: "3.1.3"
 sdks:
+<<<<<<< HEAD
   dart: ">=3.12.0 <4.0.0"
   flutter: ">=3.44.0"
+=======
+  dart: ">=3.11.3 <4.0.0"
+  flutter: ">=3.38.4"
+>>>>>>> 006c8ba (depot1)

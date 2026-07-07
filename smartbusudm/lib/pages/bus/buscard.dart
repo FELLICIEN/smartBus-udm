@@ -233,6 +233,7 @@ class BusCard extends StatelessWidget {
   /// 🔍 DETAILS
   void showDetails(BuildContext context) async {
     bool isAdmin = false;
+    bool isChauffeur = false;
 
     final user = FirebaseAuth.instance.currentUser;
 
@@ -244,6 +245,7 @@ class BusCard extends StatelessWidget {
 
       if (userDoc.exists) {
         isAdmin = userDoc.data()?["role"] == "admin";
+        isChauffeur = userDoc.data()?["role"] == "chauffeur";
       }
     }
 
@@ -310,7 +312,7 @@ class BusCard extends StatelessWidget {
           actions: [
 
             /// ADMIN
-            if (isAdmin) ...[
+            if (isAdmin || isChauffeur) ...[
 
               TextButton(
                 onPressed: () {
@@ -427,7 +429,7 @@ class BusCard extends StatelessWidget {
               ],
             ),
 
-            const SizedBox(width: 20),
+            const SizedBox(width: 5),
 
             /// 🚌 ICON
             Container(
@@ -444,7 +446,7 @@ class BusCard extends StatelessWidget {
               ),
             ),
 
-            const SizedBox(width: 18),
+            const SizedBox(width: 10),
 
             /// 📄 INFOS
             Expanded(

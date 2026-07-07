@@ -1,306 +1,670 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:smartbusudm/services/bacground_service.dart';
 
-class ChauffeurPassagesPage extends StatefulWidget {
-  const ChauffeurPassagesPage({super.key});
+class ChauffeurPage extends StatefulWidget {
+  const ChauffeurPage({super.key});
 
   @override
-  State<ChauffeurPassagesPage> createState() =>
-      _ChauffeurPassagesPageState();
+  State<ChauffeurPage> createState() => _ChauffeurPageState();
 }
 
-class _ChauffeurPassagesPageState
-    extends State<ChauffeurPassagesPage> {
-  final FirebaseFirestore firestore = FirebaseFirestore.instance;
-  final FirebaseAuth auth = FirebaseAuth.instance;
+class _ChauffeurPageState extends State<ChauffeurPage>
+    with SingleTickerProviderStateMixin {
+  bool gpsActif = false;
+  String busNom = "Chargement...";
+  String busStatus = "Disponible";
+  String busId = "";
 
-  String chauffeurId = "";
-  bool loading = true;
-  bool isChauffeur = false;
+  late AnimationController _pulseController;
+  late Animation<double> _pulseAnimation;
+
+  String get chauffeurId =>
+      FirebaseAuth.instance.currentUser?.uid ?? "";
+
+  String get nomChauffeur =>
+      FirebaseAuth.instance.currentUser?.displayName ?? "Chauffeur";
 
   @override
   void initState() {
     super.initState();
-    initUser();
+    chargerBus();
+
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 1),
+    )..repeat(reverse: true);
+
+    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.15).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
   }
 
-  Future<void> initUser() async {
-    final user = auth.currentUser;
-    if (user == null) {
-      setState(() => loading = false);
-      return;
+  @override
+  void dispose() {
+    _pulseController.dispose();
+    super.dispose();
+  }
+
+  String _formatHeure(dynamic valeur) {
+    if (valeur == null) return 'Inconnue';
+    DateTime dt;
+    if (valeur is Timestamp) {
+      dt = valeur.toDate();
+    } else if (valeur is String) {
+      return valeur;
+    } else {
+      return 'Format invalide';
     }
+    return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+  }
 
-    chauffeurId = user.uid;
+  Future<void> chargerBus() async {
+    final bus = await FirebaseFirestore.instance
+        .collection('buses')
+        .where('chauffeurId', isEqualTo: chauffeurId)
+        .limit(1)
+        .get();
 
-    final userDoc =
-        await firestore.collection('users').doc(chauffeurId).get();
+    if (bus.docs.isNotEmpty) {
+      final data = bus.docs.first.data();
+      setState(() {
+        busId = bus.docs.first.id;
+        busNom = data['nom'] ?? 'BUS';
+        busStatus = data['status'] ?? 'Disponible';
+        gpsActif = data['tracking'] ?? false;
+      });
+    }
+  }
 
-    final data = userDoc.data() as Map<String, dynamic>;
-    isChauffeur = data['role'] == 'chauffeur';
+  Future<void> demarrerGPS() async {
+    try {
+      final busRef = FirebaseFirestore.instance
+          .collection('buses')
+          .doc(busId);
 
-    setState(() => loading = false);
+      await busRef.update({'status': 'En service', 'tracking': true});
+      await BackgroundLocationService.startService();
+
+      setState(() {
+        gpsActif = true;
+        busStatus = "En service";
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Row(
+            children: [
+              Icon(Icons.gps_fixed, color: Colors.white),
+              SizedBox(width: 10),
+              Text("GPS démarré avec succès"),
+            ],
+          ),
+          backgroundColor: Colors.green.shade700,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      );
+    } catch (e) {
+      debugPrint("Erreur START GPS: $e");
+    }
+  }
+
+  Future<void> arreterGPS() async {
+    try {
+      final busRef = FirebaseFirestore.instance
+          .collection('buses')
+          .doc(busId);
+
+      await busRef.update({'status': 'Disponible', 'tracking': false});
+      await BackgroundLocationService.stopService();
+
+      setState(() {
+        gpsActif = false;
+        busStatus = "Disponible";
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Row(
+            children: [
+              Icon(Icons.gps_off, color: Colors.white),
+              SizedBox(width: 10),
+              Text("GPS arrêté"),
+            ],
+          ),
+          backgroundColor: Colors.red.shade700,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      );
+    } catch (e) {
+      debugPrint("Erreur STOP GPS: $e");
+    }
   }
 
   Stream<QuerySnapshot> getPassages() {
-    return firestore
+    return FirebaseFirestore.instance
         .collection('passages')
-        .where('userId', isEqualTo: chauffeurId)
-        .orderBy('heurePrevue', descending: true)
+        .where('chauffeurId', isEqualTo: chauffeurId)
+        .orderBy('heurePrevue')
         .snapshots();
-  }
-
-  String formatDate(Timestamp? t) {
-    if (t == null) return "--";
-    return DateFormat('EEE dd MMM • HH:mm').format(t.toDate());
-  }
-
-  int getDelay(Timestamp? planned) {
-    if (planned == null) return 0;
-    final diff = DateTime.now().difference(planned.toDate()).inMinutes;
-    return diff > 0 ? diff : 0;
-  }
-
-  Color statusColor(String s) {
-    switch (s.toLowerCase()) {
-      case "retard":
-        return Colors.orange;
-      case "annulé":
-        return Colors.red;
-      case "passé":
-        return Colors.green;
-      case "a_l_heure":
-        return Colors.blue;
-      default:
-        return Colors.grey;
-    }
-  }
-
-  String statusText(String s) {
-    switch (s.toLowerCase()) {
-      case "a_l_heure":
-        return "À l'heure";
-      case "retard":
-        return "Retard";
-      case "annulé":
-        return "Annulé";
-      case "passé":
-        return "Passé";
-      default:
-        return s;
-    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF2F4F8),
-
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF1E88E5),
-        elevation: 0,
-        title: const Text(
-          "Mes passages",
-          style: TextStyle(fontWeight: FontWeight.bold),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Color(0xff0A0F2C),
+              Color(0xff0D2B6B),
+              Color(0xff1A1060),
+            ],
+          ),
         ),
-        centerTitle: true,
-      ),
+        child: SafeArea(
+          child: RefreshIndicator(
+            onRefresh: chargerBus,
+            color: Colors.white,
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
 
-      body: loading
-          ? const Center(child: CircularProgressIndicator())
-          : !isChauffeur
-              ? const Center(
-                  child: Text(
-                    "Accès réservé aux chauffeurs",
-                    style: TextStyle(fontSize: 18),
-                  ),
-                )
-              : StreamBuilder<QuerySnapshot>(
-                  stream: getPassages(),
-                  builder: (context, snapshot) {
-                    if (!snapshot.hasData) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-
-                    final data = snapshot.data!.docs;
-
-                    if (data.isEmpty) {
-                      return const Center(
-                        child: Text("Aucun passage trouvé 🚍"),
-                      );
-                    }
-
-                    return ListView.builder(
-                      padding: const EdgeInsets.all(16),
-                      itemCount: data.length,
-                      itemBuilder: (context, i) {
-                        final d =
-                            data[i].data() as Map<String, dynamic>;
-
-                        final bus = d['busNom'] ?? "Bus";
-                        final station = d['stationNom'] ?? "Station";
-                        final status = d['statut'] ?? "a_l_heure";
-                        final heure = d['heurePrevue'] as Timestamp?;
-
-                        final delay = getDelay(heure);
-
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 16),
-
-                          decoration: BoxDecoration(
+                  /// HEADER
+                  Row(
+                    children: [
+                      Container(
+                        width: 52,
+                        height: 52,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: const LinearGradient(
+                            colors: [Color(0xff6C63FF), Color(0xff3B82F6)],
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xff6C63FF).withOpacity(0.5),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.person,
+                          color: Colors.white,
+                          size: 28,
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            "Bonjour 👋",
+                            style: TextStyle(
+                              color: Colors.white60,
+                              fontSize: 13,
+                            ),
+                          ),
+                          Text(
+                            nomChauffeur,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const Spacer(),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(20),
+                          gradient: LinearGradient(
+                            colors: gpsActif
+                                ? [
+                                    Colors.green.shade700,
+                                    Colors.green.shade400
+                                  ]
+                                : [
+                                    Colors.grey.shade700,
+                                    Colors.grey.shade500
+                                  ],
+                          ),
+                        ),
+                        child: Text(
+                          gpsActif ? "En service" : "Disponible",
+                          style: const TextStyle(
                             color: Colors.white,
-                            borderRadius: BorderRadius.circular(24),
-                            boxShadow: [
-                              BoxShadow(
-                                // ignore: deprecated_member_use
-                                color: Colors.black.withOpacity(0.05),
-                                blurRadius: 20,
-                                offset: const Offset(0, 10),
-                              )
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 28),
+
+                  /// BUS CARD
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(24),
+                      gradient: const LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          Color(0xff6C63FF),
+                          Color(0xff3B82F6),
+                          Color(0xff06B6D4),
+                        ],
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          // ignore: deprecated_member_use
+                          color: const Color(0xff6C63FF).withOpacity(0.4),
+                          blurRadius: 20,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.directions_bus_rounded,
+                              color: Colors.white,
+                              size: 36,
+                            ),
+                            const SizedBox(width: 12),
+                            Text('Bus '+ busNom,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 26,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 1.2,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 20),
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            // ignore: deprecated_member_use
+                            color: Colors.white.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              /// Bouton GPS animé
+                              AnimatedBuilder(
+                                animation: _pulseAnimation,
+                                builder: (context, child) {
+                                  return Transform.scale(
+                                    scale: gpsActif
+                                        ? _pulseAnimation.value
+                                        : 1.0,
+                                    child: child,
+                                  );
+                                },
+                                child: Container(
+                                  width: 60,
+                                  height: 60,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: gpsActif
+                                        ? Colors.greenAccent.shade400
+                                        : Colors.white24,
+                                    boxShadow: gpsActif
+                                        ? [
+                                            BoxShadow(
+                                              color: Colors.greenAccent
+                                                  // ignore: deprecated_member_use
+                                                  .withOpacity(0.6),
+                                              blurRadius: 16,
+                                              spreadRadius: 4,
+                                            )
+                                          ]
+                                        : [],
+                                  ),
+                                  child: Icon(
+                                    gpsActif
+                                        ? Icons.gps_fixed
+                                        : Icons.gps_off,
+                                    color: Colors.white,
+                                    size: 28,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    gpsActif ? "GPS ACTIF" : "GPS INACTIF",
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                  Text(
+                                    gpsActif
+                                        ? "Position en cours d'envoi"
+                                        : "Appuyez sur START",
+                                    style: const TextStyle(
+                                      color: Colors.white70,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ],
                           ),
+                        ),
+                      ],
+                    ),
+                  ),
 
-                          child: Padding(
-                            padding: const EdgeInsets.all(16),
+                  const SizedBox(height: 20),
 
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-
-                                /// HEADER
-                                Row(
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.all(14),
-                                      decoration: BoxDecoration(
-                                        gradient: LinearGradient(
-                                          colors: [
-                                            Colors.blue.shade300,
-                                            Colors.blue.shade700
-                                          ],
-                                        ),
-                                        borderRadius: BorderRadius.circular(16),
-                                      ),
-                                      child: const Icon(
-                                        Icons.directions_bus,
-                                        color: Colors.white,
-                                      ),
+                  /// BOUTONS START / STOP
+                  Row(
+                    children: [
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: gpsActif ? null : demarrerGPS,
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 300),
+                            padding: const EdgeInsets.symmetric(vertical: 18),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(18),
+                              gradient: gpsActif
+                                  ? LinearGradient(
+                                      colors: [
+                                        Colors.grey.shade700,
+                                        Colors.grey.shade600
+                                      ],
+                                    )
+                                  : const LinearGradient(
+                                      colors: [
+                                        Color(0xff22C55E),
+                                        Color(0xff16A34A),
+                                      ],
                                     ),
-
-                                    const SizedBox(width: 12),
-
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            bus,
-                                            style: const TextStyle(
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            station,
-                                            style: TextStyle(
-                                              color: Colors.grey[600],
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-
-                                    /// STATUS CHIP
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 12,
-                                        vertical: 6,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: statusColor(status)
+                              boxShadow: gpsActif
+                                  ? []
+                                  : [
+                                      BoxShadow(
+                                        color: const Color(0xff22C55E)
                                             // ignore: deprecated_member_use
-                                            .withOpacity(0.15),
-                                        borderRadius:
-                                            BorderRadius.circular(30),
-                                      ),
-                                      child: Text(
-                                        statusText(status),
-                                        style: TextStyle(
-                                          color: statusColor(status),
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-
-                                const SizedBox(height: 14),
-
-                                /// TIME CARD
-                                Container(
-                                  padding: const EdgeInsets.all(12),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFF7F9FC),
-                                    borderRadius: BorderRadius.circular(14),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      const Icon(Icons.access_time,
-                                          size: 18, color: Colors.orange),
-                                      const SizedBox(width: 8),
-                                      Text(formatDate(heure)),
-                                    ],
-                                  ),
-                                ),
-
-                                const SizedBox(height: 10),
-
-                                /// DELAY
-                                Container(
-                                  padding: const EdgeInsets.all(12),
-                                  decoration: BoxDecoration(
-                                    color: delay > 0
-                                        // ignore: deprecated_member_use
-                                        ? Colors.red.withOpacity(0.08)
-                                        // ignore: deprecated_member_use
-                                        : Colors.green.withOpacity(0.08),
-                                    borderRadius: BorderRadius.circular(14),
-                                  ),
-                                  child: Row(
-                                   children: [
-                                      Icon(
-                                        Icons.timer,
-                                         color:
-                                            delay > 0 ? Colors.red : Colors.green,
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        delay > 0
-                                            ? "Retard : $delay min"
-                                            : "À l'heure",
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          color: delay > 0
-                                              ? Colors.red
-                                              : Colors.green,
-                                        ),
+                                            .withOpacity(0.4),
+                                        blurRadius: 12,
+                                        offset: const Offset(0, 4),
                                       ),
                                     ],
+                            ),
+                            child: const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.play_arrow_rounded,
+                                    color: Colors.white, size: 22),
+                                SizedBox(width: 6),
+                                Text(
+                                  "START",
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                    letterSpacing: 1.2,
                                   ),
                                 ),
                               ],
                             ),
                           ),
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: gpsActif ? arreterGPS : null,
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 300),
+                            padding: const EdgeInsets.symmetric(vertical: 18),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(18),
+                              gradient: !gpsActif
+                                  ? LinearGradient(
+                                      colors: [
+                                        Colors.grey.shade700,
+                                        Colors.grey.shade600
+                                      ],
+                                    )
+                                  : const LinearGradient(
+                                      colors: [
+                                        Color(0xffEF4444),
+                                        Color(0xffDC2626),
+                                      ],
+                                    ),
+                              boxShadow: !gpsActif
+                                  ? []
+                                  : [
+                                      BoxShadow(
+                                        color: const Color(0xffEF4444)
+                                            // ignore: deprecated_member_use
+                                            .withOpacity(0.4),
+                                        blurRadius: 12,
+                                        offset: const Offset(0, 4),
+                                      ),
+                                    ],
+                            ),
+                            child: const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.stop_rounded,
+                                    color: Colors.white, size: 22),
+                                SizedBox(width: 6),
+                                Text(
+                                  "STOP",
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                    letterSpacing: 1.2,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 28),
+
+                  /// TITRE PASSAGES
+                  const Row(
+                    children: [
+                      Icon(Icons.route_rounded,
+                          color: Colors.white70, size: 20),
+                      SizedBox(width: 8),
+                      Text(
+                        "Mes passages",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 14),
+
+                  /// LISTE PASSAGES
+                  StreamBuilder<QuerySnapshot>(
+                    stream: getPassages(),
+                    builder: (context, snapshot) {
+                      if (!snapshot.hasData) {
+                        return const Center(
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                          ),
                         );
-                      },
-                    );
-                  },
-                ),
+                      }
+
+                      if (snapshot.data!.docs.isEmpty) {
+                        return Container(
+                          padding: const EdgeInsets.all(24),
+                          decoration: BoxDecoration(
+                            // ignore: deprecated_member_use
+                            color: Colors.white.withOpacity(0.05),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: Colors.white12,
+                            ),
+                          ),
+                          child: const Center(
+                            child: Text(
+                              "Aucun passage prévu",
+                              style: TextStyle(color: Colors.white54),
+                            ),
+                          ),
+                        );
+                      }
+
+                      return ListView.separated(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: snapshot.data!.docs.length,
+                        separatorBuilder: (_, __) =>
+                            const SizedBox(height: 10),
+                        itemBuilder: (context, index) {
+                          final p = snapshot.data!.docs[index];
+                          return Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(16),
+                              gradient: LinearGradient(
+                                colors: [
+                                  // ignore: deprecated_member_use
+                                  Colors.white.withOpacity(0.08),
+                                  // ignore: deprecated_member_use
+                                  Colors.white.withOpacity(0.04),
+                                ],
+                              ),
+                              border: Border.all(
+                                // ignore: deprecated_member_use
+                                color: Colors.white.withOpacity(0.12),
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 44,
+                                  height: 44,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    gradient: const LinearGradient(
+                                      colors: [
+                                        Color(0xff6C63FF),
+                                        Color(0xff3B82F6),
+                                      ],
+                                    ),
+                                  ),
+                                  child: const Icon(
+                                    Icons.place_rounded,
+                                    color: Colors.white,
+                                    size: 22,
+                                  ),
+                                ),
+                                const SizedBox(width: 14),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text( 'Station '+ p['stationNom'] ?? 'Station',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 15,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        'Prévu à ${_formatHeure(p['heurePrevue'])}',
+                                        style: const TextStyle(
+                                          color: Colors.white54,
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(20),
+                                    color:
+                                        // ignore: deprecated_member_use
+                                        const Color(0xff3B82F6).withOpacity(0.2),
+                                    border: Border.all(
+                                      color: const Color(0xff3B82F6)
+                                          // ignore: deprecated_member_use
+                                          .withOpacity(0.4),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    _formatHeure(p['heurePrevue']),
+                                    style: const TextStyle(
+                                      color: Color(0xff93C5FD),
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      );
+                    },
+                  ),
+
+                  const SizedBox(height: 20),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
