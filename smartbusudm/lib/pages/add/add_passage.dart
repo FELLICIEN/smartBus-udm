@@ -252,7 +252,7 @@ class _AddPassagePageState extends State<AddPassagePage> {
                       final buses = snapshot.data!;
 
                       return DropdownButtonFormField<String>(
-  value: selectedBus,
+  initialValue: selectedBus,
   isExpanded: true,
   decoration: style("Bus", Icons.directions_bus),
   items: buses.map((bus) {
